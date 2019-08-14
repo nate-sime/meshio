@@ -85,6 +85,8 @@ def read(filename):  # noqa: C901
     node_sets = {}
     info = []
 
+    block_ids = None
+    block_id_idx = 1
     for key, value in nc.variables.items():
         if key == "info_records":
             value.set_auto_mask(False)
@@ -97,8 +99,11 @@ def read(filename):  # noqa: C901
             meshio_type = exodus_to_meshio_type[value.elem_type.upper()]
             if meshio_type in cells:
                 cells[meshio_type] = numpy.vstack([cells[meshio_type], value[:] - 1])
+                block_ids = numpy.hstack([block_ids, numpy.array([block_id_idx] * value[:].shape[0], dtype=numpy.int)])
             else:
                 cells[meshio_type] = value[:] - 1
+                block_ids = numpy.array([block_id_idx] * value[:].shape[0], dtype=numpy.int)
+            block_id_idx += 1
         elif key == "coord":
             points = nc.variables["coord"][:].T
         elif key == "coordx":
@@ -167,6 +172,8 @@ def read(filename):  # noqa: C901
         for name, data in zip(cell_data_names, cd.values()):
             cell_data[cell_type][name] = data[k : k + n]
         k += n
+
+    cell_data["tetra"]["block_id"] = block_ids.reshape((-1, 1))
 
     node_sets = {name: dat for name, dat in zip(ns_names, ns)}
 
